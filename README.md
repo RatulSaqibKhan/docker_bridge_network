@@ -88,3 +88,37 @@ We will build docker bridge network from scratch using linux network namespace a
     docker exec -it <container_id> bash
     ```
 4. After getting inside docker container use above mentioned commands sequentially without using the <b>sudo</b> keyword
+
+## Additional Mission:
+ - Let's try to connect internet from the container.
+ - We will try to ping the dns of google 8.8.8.8 from the network namespaces
+ ![Mission Plan](./Bridge%20Network%20Diagram%20Extended.jpeg)
+
+## Procedure
+  1. First, we need to define default gateway from each network namespaces; because the network doesn’t know what to do with the packets it receives.
+      ```
+      sudo ip netns exec red ip route add default via 10.0.1.1
+      sudo ip netns exec green ip route add default via 10.0.1.1
+      ```
+  2. We can now connect to the internet, but can’t send or receive packets. To receive packets, configure Network Address Translation (NAT) with Masquerade. Masquerading allows machines to invisibly access the Internet via the Masquerade gateway, whereas a NAT can hide private addresses from the internet.
+
+  3. Lets add a new `iptables` rule in the POSTROUTING chain of the NAT table to receive packets
+      ```
+      sudo iptables -t nat -A POSTROUTING -s 10.0.1.1/16 -j MASQUERADE
+      ```
+  
+  4. Here is a breakdown of the above flag:
+      - -t marks the table commands should be directed to
+      - -A specifies that we’re appending a rule to the chain
+      - -s specifies the source address
+      - -j is the action being performed
+  
+  5. Now enable packet forwarding with IPv4 ip forwarding:
+      ```
+      sudo sysctl -w net.ipv4.ip_forward=1
+      ```
+
+  6. Now we try to reach the internet from one of the namespaces:
+      ```
+      sudo ip netns exec red ping 8.8.8.8
+      ```
